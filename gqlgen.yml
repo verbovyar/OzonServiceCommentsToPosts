@@ -1,0 +1,29 @@
+schema:
+  - graph/schema.graphqls
+
+exec:
+  filename: graph/generated.go
+  package: graph
+
+resolver:
+  layout: follow-schema
+  dir: graph/resolvers
+  package: resolvers
+
+model:
+  filename: internal/models/models_gen.go
+  package: models
+
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  Time:
+    model:
+      - time.Time
+  Post:
+    model:
+      - ozonProject/internal/models.Post
+  Comment:
+    model:
+      - ozonProject/internal/models.Comment

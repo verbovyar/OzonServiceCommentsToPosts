@@ -1,5 +1,7 @@
 package graph
 
+import "ozonProject/internal/service"
+
 type Resolver struct {
-	// service
+	Service *service.Service
 }

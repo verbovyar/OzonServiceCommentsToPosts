@@ -7,8 +7,8 @@ exec:
 
 resolver:
   layout: follow-schema
-  dir: graph/resolvers
-  package: resolvers
+  dir: graph
+  package: graph
 
 model:
   filename: internal/models/models_gen.go
@@ -20,7 +20,7 @@ models:
       - github.com/99designs/gqlgen/graphql.ID
   Time:
     model:
-      - time.Time
+      - github.com/99designs/gqlgen/graphql.Time
   Post:
     model:
       - ozonProject/internal/models.Post

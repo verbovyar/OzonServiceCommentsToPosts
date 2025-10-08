@@ -7,6 +7,7 @@ import (
 	"ozonProject/internal/pubsub"
 	"ozonProject/internal/service"
 	databases "ozonProject/internal/storage/dataBases"
+	"ozonProject/pkg/postgres"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -15,8 +16,10 @@ import (
 )
 
 func main() {
-	st := databases.NewInMemRepository()
-	svc := service.New(st)
+
+	pool := postgres.New("postgres://postgres:Verbov323213@localhost:5432/OzonPostsCommentsDB")
+	repo := databases.NewPostgresRepository(pool.Pool)
+	svc := service.New(repo)
 	bus := pubsub.New()
 
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{

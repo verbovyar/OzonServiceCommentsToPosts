@@ -4,20 +4,27 @@ import (
 	"log"
 	"net/http"
 	"ozonProject/graph"
+	"ozonProject/internal/pubsub"
 	"ozonProject/internal/service"
 	databases "ozonProject/internal/storage/dataBases"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 )
 
 func main() {
 	st := databases.NewInMemRepository()
 	svc := service.New(st)
+	bus := pubsub.New()
 
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{Service: svc},
+		Resolvers: &graph.Resolver{Service: svc, Bus: bus},
 	}))
+	srv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+	})
 
 	http.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)

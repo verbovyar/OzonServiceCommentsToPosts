@@ -10,6 +10,10 @@ type Post {
   comments(limit: Int = 10, offset: Int = 0, parentId: ID): [Comment!]!
 }
 
+type Subscription {
+  commentAdded(postId: ID!): Comment!
+}
+
 type Comment {
   id: ID!
   postId: ID!

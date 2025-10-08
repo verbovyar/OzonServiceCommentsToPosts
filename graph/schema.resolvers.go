@@ -6,10 +6,9 @@ package graph
 
 import (
 	"context"
-	"strconv"
-
 	"ozonProject/internal/models"
 	"ozonProject/internal/service"
+	"strconv"
 )
 
 func toStrID(id int64) string {
@@ -23,14 +22,17 @@ func valOr[T any](p *T, def T) T {
 	return def
 }
 
+// ID is the resolver for the id field.
 func (r *commentResolver) ID(ctx context.Context, obj *models.Comment) (string, error) {
 	return toStrID(obj.ID), nil
 }
 
+// PostID is the resolver for the postId field.
 func (r *commentResolver) PostID(ctx context.Context, obj *models.Comment) (string, error) {
 	return toStrID(obj.PostID), nil
 }
 
+// ParentID is the resolver for the parentId field.
 func (r *commentResolver) ParentID(ctx context.Context, obj *models.Comment) (*string, error) {
 	if obj.ParentID == nil {
 		return nil, nil
@@ -40,6 +42,7 @@ func (r *commentResolver) ParentID(ctx context.Context, obj *models.Comment) (*s
 	return &s, nil
 }
 
+// Children is the resolver for the children field.
 func (r *commentResolver) Children(ctx context.Context, obj *models.Comment, limit *int, offset *int) ([]*models.Comment, error) {
 	l := valOr(limit, 10)
 	o := valOr(offset, 0)
@@ -54,6 +57,7 @@ func (r *commentResolver) Children(ctx context.Context, obj *models.Comment, lim
 	return comments, nil
 }
 
+// CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, title string, content string, author string, commentsEnabled *bool) (*models.Post, error) {
 	ce := true
 	if commentsEnabled != nil {
@@ -67,19 +71,24 @@ func (r *mutationResolver) CreatePost(ctx context.Context, title string, content
 	return post, nil
 }
 
+// CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentID *string, author string, content string) (*models.Comment, error) {
 	c, err := r.Service.CreateComment(ctx, postID, parentID, author, content)
 	if err != nil {
 		return nil, service.ToUserError(err)
 	}
 
+	r.Bus.Publish(c)
+
 	return c, nil
 }
 
+// ID is the resolver for the id field.
 func (r *postResolver) ID(ctx context.Context, obj *models.Post) (string, error) {
 	return toStrID(obj.ID), nil
 }
 
+// Comments is the resolver for the comments field.
 func (r *postResolver) Comments(ctx context.Context, obj *models.Post, limit *int, offset *int, parentID *string) ([]*models.Comment, error) {
 	l := valOr(limit, 10)
 	o := valOr(offset, 0)
@@ -93,6 +102,7 @@ func (r *postResolver) Comments(ctx context.Context, obj *models.Post, limit *in
 	return comments, nil
 }
 
+// Posts is the resolver for the posts field.
 func (r *queryResolver) Posts(ctx context.Context, limit *int, offset *int) ([]*models.Post, error) {
 	l := valOr(limit, 10)
 	o := valOr(offset, 0)
@@ -100,19 +110,62 @@ func (r *queryResolver) Posts(ctx context.Context, limit *int, offset *int) ([]*
 	return r.Service.ListPosts(ctx, l, o)
 }
 
+// Post is the resolver for the post field.
 func (r *queryResolver) Post(ctx context.Context, id string) (*models.Post, error) {
 	return r.Service.GetPost(ctx, id)
 }
 
+// CommentAdded is the resolver for the commentAdded field.
+func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID string) (<-chan *models.Comment, error) {
+	pid, err := strconv.ParseInt(postID, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	ch := r.Bus.Subscribe(pid)
+
+	go func() {
+		<-ctx.Done()
+		r.Bus.Unsubscribe(pid, ch)
+	}()
+
+	return ch, nil
+}
+
+// Comment returns CommentResolver implementation.
 func (r *Resolver) Comment() CommentResolver { return &commentResolver{r} }
 
+// Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
+// Post returns PostResolver implementation.
 func (r *Resolver) Post() PostResolver { return &postResolver{r} }
 
+// Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
+
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
 
 type commentResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type postResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func toStrID(id int64) string {
+	return strconv.FormatInt(id, 10)
+}
+func valOr[T any](p *T, def T) T {
+	if p != nil {
+		return *p
+	}
+	return def
+}
+*/

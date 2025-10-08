@@ -78,3 +78,22 @@ query {
     }
   }
 }
+---------------------------
+Подписка на пост
+subscription {
+  commentAdded(postId: "1") {
+    id
+    postId
+    parentId
+    author
+    content
+    createdAt
+  }
+}
+
+В другой вкладке 
+mutation {
+  createComment(postId: "1", author: "Roma", content: "Hello via subscriptions!") {
+    id
+  }
+}

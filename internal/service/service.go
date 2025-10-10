@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"ozonProject/internal/models"
-	"ozonProject/internal/storage/interfaces"
+	"ozonProject/internal/storage"
 	"ozonProject/internal/validation"
 	"strconv"
 )
 
 type Service struct {
-	store interfaces.StoreIface
+	storage storage.Storage
 }
 
-func New(store interfaces.StoreIface) *Service {
+func New(storage storage.Storage) *Service {
 	return &Service{
-		store: store,
+		storage: storage,
 	}
 }
 
@@ -28,7 +28,7 @@ func (s *Service) ListPosts(ctx context.Context, limit, offset int) ([]*models.P
 		offset = 0
 	}
 
-	return s.store.GetPosts(ctx, limit, offset)
+	return s.storage.GetPosts(ctx, limit, offset)
 }
 
 func (s *Service) GetPost(ctx context.Context, idStr string) (*models.Post, error) {
@@ -37,11 +37,11 @@ func (s *Service) GetPost(ctx context.Context, idStr string) (*models.Post, erro
 		return nil, err
 	}
 
-	return s.store.GetPostByID(ctx, id)
+	return s.storage.GetPostByID(ctx, id)
 }
 
 func (s *Service) CreatePost(ctx context.Context, title, content, author string, commentsEnabled bool) (*models.Post, error) {
-	return s.store.CreatePost(ctx, title, content, author, commentsEnabled)
+	return s.storage.CreatePost(ctx, title, content, author, commentsEnabled)
 }
 
 func (s *Service) CreateComment(ctx context.Context, postIDStr string, parentIDStr *string, author, content string) (*models.Comment, error) {
@@ -54,7 +54,7 @@ func (s *Service) CreateComment(ctx context.Context, postIDStr string, parentIDS
 		return nil, err
 	}
 
-	if err := s.store.EnsureCommentsEnabled(ctx, postID); err != nil {
+	if err := s.storage.EnsureCommentsEnabled(ctx, postID); err != nil {
 		return nil, validation.ErrCommentsOff
 	}
 
@@ -67,7 +67,7 @@ func (s *Service) CreateComment(ctx context.Context, postIDStr string, parentIDS
 		parentID = &pid
 	}
 
-	return s.store.CreateComment(ctx, postID, parentID, author, content)
+	return s.storage.CreateComment(ctx, postID, parentID, author, content)
 }
 
 func (s *Service) ListComments(ctx context.Context, postIDStr string, parentIDStr *string, limit, offset int) ([]*models.Comment, error) {
@@ -93,7 +93,7 @@ func (s *Service) ListComments(ctx context.Context, postIDStr string, parentIDSt
 		offset = 0
 	}
 
-	return s.store.GetComments(ctx, postID, parentID, limit, offset)
+	return s.storage.GetComments(ctx, postID, parentID, limit, offset)
 }
 
 func ToUserError(err error) error {

@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"ozonProject/config"
 	"ozonProject/graph"
 	"ozonProject/internal/pubsub"
 	"ozonProject/internal/service"
-	databases "ozonProject/internal/storage/dataBases"
-	"ozonProject/internal/storage/interfaces"
+	"ozonProject/internal/storage"
+
 	"ozonProject/pkg/postgres"
 	"time"
 
@@ -17,42 +18,52 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 )
 
+const (
+	queryPath      = "/query"
+	playgroundPath = "/playground"
+)
+
 func main() {
-	conf, err := config.LoadConfig("./config")
+	config, err := config.Load()
 	if err != nil {
-		println(err.Error())
+		log.Fatal(err.Error())
 	}
 
-	var repo interfaces.StoreIface
-	if conf.RepositoryType == "Postgres" {
-		repo = startPostgres(conf.ConnectingString)
-	} else if conf.RepositoryType == "InMemory" {
-		repo = startInMemory()
+	runApp(config)
+}
+
+func usePostgres(config config.Config) storage.Storage {
+	connectionString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", config.DbUser, config.DbPassword, config.DbHost, config.DbPort, config.DbName)
+	pool := postgres.New(connectionString)
+	return storage.NewPostgresStorage(pool.Pool)
+}
+
+func useInMemory() storage.Storage {
+	return storage.NewInMemoryStorage()
+}
+
+func runApp(config config.Config) {
+	var repo storage.Storage
+	if config.PersistanceEnabled {
+		repo = usePostgres(config)
+	} else {
+		repo = useInMemory()
 	}
 
-	svc := service.New(repo)
+	service := service.New(repo)
 	bus := pubsub.New()
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{Service: svc, Bus: bus},
+	server := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
+		Resolvers: &graph.Resolver{Service: service, Bus: bus},
 	}))
-	srv.AddTransport(&transport.Websocket{
+	server.AddTransport(&transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 	})
 
-	http.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	http.Handle(playgroundPath, playground.Handler("Playground", queryPath))
+	http.Handle(queryPath, server)
 
-	log.Printf("listening on %s", conf.Port)
-	log.Println("Playground:  http://localhost:8080/playground")
-	log.Fatal(http.ListenAndServe(conf.Port, nil))
-}
-
-func startPostgres(connectingString string) interfaces.StoreIface {
-	pool := postgres.New(connectingString)
-	return databases.NewPostgresRepository(pool.Pool)
-}
-
-func startInMemory() interfaces.StoreIface {
-	return databases.NewInMemRepository()
+	log.Printf("listening on %s", config.AppPort)
+	log.Printf("Sandbox:  http://localhost:%s%s", config.AppPort, playgroundPath)
+	log.Fatal(http.ListenAndServe(config.AppPort, nil))
 }

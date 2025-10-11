@@ -36,6 +36,12 @@
 docker-compose up --build
 ```
 
+### Взаимодействие
+
+```bash
+http://localhost:SERVICE_PORT/playground
+```
+
 ## Примеры запросов
 
 ### Создать пост

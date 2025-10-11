@@ -4,12 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Postgres struct {
-	maxAttempts int
-
 	Pool *pgxpool.Pool
 }
 
@@ -26,7 +24,7 @@ func newPool(ctx context.Context, maxAttempts int, connectionString string) (con
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
-		connectionPool, err = pgxpool.Connect(ctx, connectionString)
+		connectionPool, err = pgxpool.New(ctx, connectionString)
 		if err != nil {
 			return err
 		}

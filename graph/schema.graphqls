@@ -1,13 +1,13 @@
 scalar Time
 
 type Post {
-  id: ID!
+  id: String!
   title: String!
   content: String!
   author: String!
   commentsEnabled: Boolean!
   createdAt: Time!
-  comments(limit: Int = 10, offset: Int = 0, parentId: ID): [Comment!]!
+  comments(limit: Int = 10, offset: Int = 0, parentId: String): [Comment!]!
 }
 
 type Subscription {
@@ -15,9 +15,9 @@ type Subscription {
 }
 
 type Comment {
-  id: ID!
-  postId: ID!
-  parentId: ID
+  id: String!
+  postId: String!
+  parentId: String
   author: String!
   content: String!
   createdAt: Time!
@@ -31,5 +31,5 @@ type Query {
 
 type Mutation {
   createPost(title: String!, content: String!, author: String!, commentsEnabled: Boolean = true): Post!
-  createComment(postId: ID!, parentId: ID, author: String!, content: String!): Comment!
+  createComment(postId: ID!, parentId: String, author: String!, content: String!): Comment!
 }

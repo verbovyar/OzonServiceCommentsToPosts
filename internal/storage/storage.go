@@ -4,7 +4,7 @@ import (
 	"context"
 	"ozonProject/internal/models"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 )
 
 type PgxPoolIface interface {
@@ -15,9 +15,9 @@ type PgxPoolIface interface {
 type Storage interface {
 	CreatePost(ctx context.Context, title, content, author string, commentsEnabled bool) (*models.Post, error)
 	GetPosts(ctx context.Context, limit, offset int) ([]*models.Post, error)
-	GetPostByID(ctx context.Context, id int64) (*models.Post, error)
+	GetPostByID(ctx context.Context, id string) (*models.Post, error)
 
-	CreateComment(ctx context.Context, postID int64, parentID *int64, author, content string) (*models.Comment, error)
-	GetComments(ctx context.Context, postID int64, parentID *int64, limit, offset int) ([]*models.Comment, error)
-	EnsureCommentsEnabled(ctx context.Context, postID int64) error
+	CreateComment(ctx context.Context, postID string, parentID string, author, content string) (*models.Comment, error)
+	GetComments(ctx context.Context, postID string, parentID string, limit, offset int) ([]*models.Comment, error)
+	EnsureCommentsEnabled(ctx context.Context, postID string) error
 }

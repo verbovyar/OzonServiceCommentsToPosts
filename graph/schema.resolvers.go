@@ -8,48 +8,11 @@ import (
 	"context"
 	"ozonProject/internal/models"
 	"ozonProject/internal/service"
-	"strconv"
 )
-
-func toStrID(id int64) string {
-	return strconv.FormatInt(id, 10)
-}
-
-func valOr[T any](p *T, def T) T {
-	if p != nil {
-		return *p
-	}
-	return def
-}
-
-// ID is the resolver for the id field.
-func (r *commentResolver) ID(ctx context.Context, obj *models.Comment) (string, error) {
-	return toStrID(obj.ID), nil
-}
-
-// PostID is the resolver for the postId field.
-func (r *commentResolver) PostID(ctx context.Context, obj *models.Comment) (string, error) {
-	return toStrID(obj.PostID), nil
-}
-
-// ParentID is the resolver for the parentId field.
-func (r *commentResolver) ParentID(ctx context.Context, obj *models.Comment) (*string, error) {
-	if obj.ParentID == nil {
-		return nil, nil
-	}
-	s := toStrID(*obj.ParentID)
-
-	return &s, nil
-}
 
 // Children is the resolver for the children field.
 func (r *commentResolver) Children(ctx context.Context, obj *models.Comment, limit *int, offset *int) ([]*models.Comment, error) {
-	l := valOr(limit, 10)
-	o := valOr(offset, 0)
-
-	pid := toStrID(obj.ID)
-	postID := toStrID(obj.PostID)
-	comments, err := r.Service.ListComments(ctx, postID, &pid, l, o)
+	comments, err := r.Service.ListComments(ctx, obj.PostID, obj.ParentID, limit, offset)
 	if err != nil {
 		return nil, service.ToUserError(err)
 	}
@@ -59,11 +22,7 @@ func (r *commentResolver) Children(ctx context.Context, obj *models.Comment, lim
 
 // CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, title string, content string, author string, commentsEnabled *bool) (*models.Post, error) {
-	ce := true
-	if commentsEnabled != nil {
-		ce = *commentsEnabled
-	}
-	post, err := r.Service.CreatePost(ctx, title, content, author, ce)
+	post, err := r.Service.CreatePost(ctx, title, content, author, commentsEnabled)
 	if err != nil {
 		return nil, service.ToUserError(err)
 	}
@@ -72,8 +31,8 @@ func (r *mutationResolver) CreatePost(ctx context.Context, title string, content
 }
 
 // CreateComment is the resolver for the createComment field.
-func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentID *string, author string, content string) (*models.Comment, error) {
-	c, err := r.Service.CreateComment(ctx, postID, parentID, author, content)
+func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentId *string, author string, content string) (*models.Comment, error) {
+	c, err := r.Service.CreateComment(ctx, postID, parentId, author, content)
 	if err != nil {
 		return nil, service.ToUserError(err)
 	}
@@ -83,18 +42,9 @@ func (r *mutationResolver) CreateComment(ctx context.Context, postID string, par
 	return c, nil
 }
 
-// ID is the resolver for the id field.
-func (r *postResolver) ID(ctx context.Context, obj *models.Post) (string, error) {
-	return toStrID(obj.ID), nil
-}
-
 // Comments is the resolver for the comments field.
-func (r *postResolver) Comments(ctx context.Context, obj *models.Post, limit *int, offset *int, parentID *string) ([]*models.Comment, error) {
-	l := valOr(limit, 10)
-	o := valOr(offset, 0)
-	postID := toStrID(obj.ID)
-
-	comments, err := r.Service.ListComments(ctx, postID, parentID, l, o)
+func (r *postResolver) Comments(ctx context.Context, obj *models.Post, limit *int, offset *int, parentId *string) ([]*models.Comment, error) {
+	comments, err := r.Service.ListComments(ctx, obj.ID, parentId, limit, offset)
 	if err != nil {
 		return nil, service.ToUserError(err)
 	}
@@ -104,10 +54,7 @@ func (r *postResolver) Comments(ctx context.Context, obj *models.Post, limit *in
 
 // Posts is the resolver for the posts field.
 func (r *queryResolver) Posts(ctx context.Context, limit *int, offset *int) ([]*models.Post, error) {
-	l := valOr(limit, 10)
-	o := valOr(offset, 0)
-
-	return r.Service.ListPosts(ctx, l, o)
+	return r.Service.ListPosts(ctx, limit, offset)
 }
 
 // Post is the resolver for the post field.
@@ -117,15 +64,11 @@ func (r *queryResolver) Post(ctx context.Context, id string) (*models.Post, erro
 
 // CommentAdded is the resolver for the commentAdded field.
 func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID string) (<-chan *models.Comment, error) {
-	pid, err := strconv.ParseInt(postID, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	ch := r.Bus.Subscribe(pid)
+	ch := r.Bus.Subscribe(postID)
 
 	go func() {
 		<-ctx.Done()
-		r.Bus.Unsubscribe(pid, ch)
+		r.Bus.Unsubscribe(postID, ch)
 	}()
 
 	return ch, nil
@@ -151,21 +94,3 @@ type mutationResolver struct{ *Resolver }
 type postResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func toStrID(id int64) string {
-	return strconv.FormatInt(id, 10)
-}
-func valOr[T any](p *T, def T) T {
-	if p != nil {
-		return *p
-	}
-	return def
-}
-*/

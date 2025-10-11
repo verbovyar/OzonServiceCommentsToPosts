@@ -6,19 +6,20 @@ import (
 	"ozonProject/internal/models"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type postsStore struct {
 	mu    sync.RWMutex
-	seq   int64
-	byID  map[int64]*models.Post
-	order []int64
+	byID  map[string]*models.Post
+	order []string
 }
 
 func newPostsStore() *postsStore {
 	return &postsStore{
-		byID:  make(map[int64]*models.Post),
-		order: make([]int64, 0, 200),
+		byID:  make(map[string]*models.Post),
+		order: make([]string, 0, 200),
 	}
 }
 
@@ -26,9 +27,8 @@ func (s *postsStore) create(title, content, author string, commentsEnabled bool)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.seq++
 	p := &models.Post{
-		ID:              s.seq,
+		ID:              uuid.New().String(),
 		Title:           title,
 		Content:         content,
 		Author:          author,
@@ -42,7 +42,7 @@ func (s *postsStore) create(title, content, author string, commentsEnabled bool)
 	return p
 }
 
-func (s *postsStore) getByID(id int64) (*models.Post, error) {
+func (s *postsStore) getByID(id string) (*models.Post, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -79,34 +79,32 @@ func (s *postsStore) list(limit, offset int) ([]*models.Post, error) {
 
 type commentsStore struct {
 	mu         sync.RWMutex
-	seq        int64
-	byID       map[int64]*models.Comment
-	byPostRoot map[int64][]int64
-	byParent   map[parentKey][]int64
+	byID       map[string]*models.Comment
+	byPostRoot map[string][]string
+	byParent   map[parentKey][]string
 }
 
 type parentKey struct {
-	postID int64
-	parent int64
+	postID string
+	parent string
 }
 
 func newCommentsStore() *commentsStore {
 	return &commentsStore{
-		byID:       make(map[int64]*models.Comment),
-		byPostRoot: make(map[int64][]int64),
-		byParent:   make(map[parentKey][]int64),
+		byID:       make(map[string]*models.Comment),
+		byPostRoot: make(map[string][]string),
+		byParent:   make(map[parentKey][]string),
 	}
 }
 
-func (s *commentsStore) create(postID int64, parentID *int64, author, content string) *models.Comment {
+func (s *commentsStore) create(postID string, parentID string, author, content string) *models.Comment {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.seq++
 	c := &models.Comment{
-		ID:        s.seq,
+		ID:        uuid.New().String(),
 		PostID:    postID,
-		ParentID:  parentID,
+		ParentID:  &parentID,
 		Author:    author,
 		Content:   content,
 		CreatedAt: time.Now().UTC(),
@@ -118,15 +116,15 @@ func (s *commentsStore) create(postID int64, parentID *int64, author, content st
 		postID: postID,
 	}
 
-	if parentID != nil {
-		pk.parent = *parentID
+	if parentID != "" {
+		pk.parent = parentID
 	}
 	s.byParent[pk] = append(s.byParent[pk], c.ID)
 
 	return c
 }
 
-func (s *commentsStore) list(postID int64, parentID *int64, limit, offset int) ([]*models.Comment, error) {
+func (s *commentsStore) list(postID string, parentID string, limit, offset int) ([]*models.Comment, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -134,8 +132,8 @@ func (s *commentsStore) list(postID int64, parentID *int64, limit, offset int) (
 		postID: postID,
 	}
 
-	if parentID != nil {
-		pk.parent = *parentID
+	if parentID != "" {
+		pk.parent = parentID
 	}
 	ids := s.byParent[pk]
 
@@ -180,18 +178,18 @@ func (r *InMemoryStorage) GetPosts(ctx context.Context, limit, offset int) ([]*m
 	return r.posts.list(limit, offset)
 }
 
-func (r *InMemoryStorage) GetPostByID(ctx context.Context, id int64) (*models.Post, error) {
+func (r *InMemoryStorage) GetPostByID(ctx context.Context, id string) (*models.Post, error) {
 	return r.posts.getByID(id)
 }
 
-func (r *InMemoryStorage) CreateComment(ctx context.Context, postID int64, parentID *int64, author, content string) (*models.Comment, error) {
+func (r *InMemoryStorage) CreateComment(ctx context.Context, postID string, parentID string, author, content string) (*models.Comment, error) {
 	if _, err := r.posts.getByID(postID); err != nil {
 		return nil, err
 	}
 
-	if parentID != nil {
+	if parentID != "" {
 		r.comments.mu.RLock()
-		_, ok := r.comments.byID[*parentID]
+		_, ok := r.comments.byID[parentID]
 		r.comments.mu.RUnlock()
 		if !ok {
 			return nil, errors.New("parent comment not found")
@@ -201,11 +199,11 @@ func (r *InMemoryStorage) CreateComment(ctx context.Context, postID int64, paren
 	return r.comments.create(postID, parentID, author, content), nil
 }
 
-func (r *InMemoryStorage) GetComments(ctx context.Context, postID int64, parentID *int64, limit, offset int) ([]*models.Comment, error) {
+func (r *InMemoryStorage) GetComments(ctx context.Context, postID string, parentID string, limit, offset int) ([]*models.Comment, error) {
 	return r.comments.list(postID, parentID, limit, offset)
 }
 
-func (r *InMemoryStorage) EnsureCommentsEnabled(ctx context.Context, postID int64) error {
+func (r *InMemoryStorage) EnsureCommentsEnabled(ctx context.Context, postID string) error {
 	p, err := r.posts.getByID(postID)
 	if err != nil {
 		return err

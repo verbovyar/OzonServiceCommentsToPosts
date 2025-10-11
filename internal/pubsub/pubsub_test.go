@@ -11,12 +11,12 @@ import (
 
 func TestBus_Publish_Subscribe(t *testing.T) {
 	b := pubsub.New()
-	postID := int64(42)
+	postID := "42"
 
 	ch := b.Subscribe(postID)
 	defer b.Unsubscribe(postID, ch)
 
-	msg := &models.Comment{ID: 1, PostID: postID, Content: "hello"}
+	msg := &models.Comment{ID: "1", PostID: postID, Content: "hello"}
 	b.Publish(msg)
 
 	select {
@@ -29,7 +29,7 @@ func TestBus_Publish_Subscribe(t *testing.T) {
 
 func TestBus_Unsubscribe_ClosesChannel(t *testing.T) {
 	b := pubsub.New()
-	postID := int64(1)
+	postID := "1"
 	ch := b.Subscribe(postID)
 	b.Unsubscribe(postID, ch)
 

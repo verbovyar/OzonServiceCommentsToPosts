@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Post struct {
-	ID              int64     `json:"id"`
+	ID              string    `json:"id"`
 	Title           string    `json:"title"`
 	Content         string    `json:"content"`
 	Author          string    `json:"author"`
@@ -12,9 +12,9 @@ type Post struct {
 }
 
 type Comment struct {
-	ID        int64     `json:"id"`
-	PostID    int64     `json:"postId"`
-	ParentID  *int64    `json:"parentId,omitempty"`
+	ID        string    `json:"id"`
+	PostID    string    `json:"postId"`
+	ParentID  *string   `json:"parentId,omitempty"`
 	Author    string    `json:"author"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"createdAt"`

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"ozonProject/internal/models"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type PostgresStorage struct {
@@ -18,13 +20,18 @@ func NewPostgresStorage(pool PgxPoolIface) *PostgresStorage {
 }
 
 func (s *PostgresStorage) CreatePost(ctx context.Context, title, content, author string, commentsEnabled bool) (*models.Post, error) {
+	id := uuid.New().String()
+
 	const query = `
-		INSERT INTO posts (title, content, author, comments_enabled)
-		VALUES ($1,$2,$3,$4)
+		INSERT INTO posts (id, title, content, author, comments_enabled)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, title, content, author, comments_enabled, created_at
 	`
+
+	log.Printf("Create post query") //
+
 	var p models.Post
-	err := s.pool.QueryRow(ctx, query, title, content, author, commentsEnabled).Scan(
+	err := s.pool.QueryRow(ctx, query, id, title, content, author, commentsEnabled).Scan(
 		&p.ID, &p.Title, &p.Content, &p.Author, &p.CommentsEnabled, &p.CreatedAt,
 	)
 	if err != nil {
@@ -41,6 +48,9 @@ func (s *PostgresStorage) GetPosts(ctx context.Context, limit, offset int) ([]*m
 		ORDER BY id DESC
 		LIMIT $1 OFFSET $2
 	`
+
+	log.Printf("Get post query.")
+
 	rows, err := s.pool.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -60,12 +70,14 @@ func (s *PostgresStorage) GetPosts(ctx context.Context, limit, offset int) ([]*m
 	return out, rows.Err()
 }
 
-func (s *PostgresStorage) GetPostByID(ctx context.Context, id int64) (*models.Post, error) {
+func (s *PostgresStorage) GetPostByID(ctx context.Context, id string) (*models.Post, error) {
 	const query = `
 		SELECT id, title, content, author, comments_enabled, created_at
 		FROM posts
 		WHERE id = $1
 	`
+	log.Printf("Get post by id query.")
+
 	var p models.Post
 	err := s.pool.QueryRow(ctx, query, id).Scan(
 		&p.ID, &p.Title, &p.Content, &p.Author, &p.CommentsEnabled, &p.CreatedAt,
@@ -77,15 +89,18 @@ func (s *PostgresStorage) GetPostByID(ctx context.Context, id int64) (*models.Po
 	return &p, nil
 }
 
-func (s *PostgresStorage) CreateComment(ctx context.Context, postID int64, parentID *int64, author, content string) (*models.Comment, error) {
+func (s *PostgresStorage) CreateComment(ctx context.Context, postID string, parentID string, author, content string) (*models.Comment, error) {
 	if err := s.EnsureCommentsEnabled(ctx, postID); err != nil {
 		return nil, err
 	}
 
-	if parentID != nil {
-		const queryParent = `SELECT post_id FROM comments WHERE id = $1`
-		var parentPostID int64
-		if err := s.pool.QueryRow(ctx, queryParent, *parentID).Scan(&parentPostID); err != nil {
+	if parentID != "" {
+		const queryPostId = `SELECT post_id FROM comments WHERE id = $1`
+
+		log.Printf("Create comment query.")
+
+		var parentPostID string
+		if err := s.pool.QueryRow(ctx, queryPostId, parentID).Scan(&parentPostID); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil, errors.New("parent comment not found")
 			}
@@ -96,13 +111,17 @@ func (s *PostgresStorage) CreateComment(ctx context.Context, postID int64, paren
 		}
 	}
 
-	const queryInsert = `
-		INSERT INTO comments (post_id, parent_id, author, content)
-		VALUES ($1,$2,$3,$4)
+	id := uuid.New().String()
+	const queryInsertComment = `
+		INSERT INTO comments (id, post_id, parent_id, author, content)
+		VALUES ($1, $2, $3 , $4, $5)
 		RETURNING id, post_id, parent_id, author, content, created_at
 	`
+
+	log.Printf("Create comment (insert comment): %s", queryInsertComment) //
+
 	var c models.Comment
-	err := s.pool.QueryRow(ctx, queryInsert, postID, parentID, author, content).Scan(
+	err := s.pool.QueryRow(ctx, queryInsertComment, id, postID, parentID, author, content).Scan(
 		&c.ID, &c.PostID, &c.ParentID, &c.Author, &c.Content, &c.CreatedAt,
 	)
 	if err != nil {
@@ -112,20 +131,23 @@ func (s *PostgresStorage) CreateComment(ctx context.Context, postID int64, paren
 	return &c, nil
 }
 
-func (s *PostgresStorage) GetComments(ctx context.Context, postID int64, parentID *int64, limit, offset int) ([]*models.Comment, error) {
-	base := `
+func (s *PostgresStorage) GetComments(ctx context.Context, postID string, parentID string, limit, offset int) ([]*models.Comment, error) {
+	query := `
 		SELECT id, post_id, parent_id, author, content, created_at
 		FROM comments
 		WHERE post_id = $1 %s
 		ORDER BY id ASC
 		LIMIT $2 OFFSET $3
 	`
+
+	log.Printf("Get comments query.") //
+
 	var rows pgx.Rows
 	var err error
-	if parentID == nil {
-		rows, err = s.pool.Query(ctx, fmt.Sprintf(base, "AND parent_id IS NULL"), postID, limit, offset)
+	if parentID == "" {
+		rows, err = s.pool.Query(ctx, fmt.Sprintf(query, "AND parent_id = '' "), postID, limit, offset)
 	} else {
-		rows, err = s.pool.Query(ctx, fmt.Sprintf(base, "AND parent_id = $4"), postID, limit, offset, *parentID)
+		rows, err = s.pool.Query(ctx, fmt.Sprintf(query, "AND parent_id = $4"), postID, limit, offset, parentID)
 	}
 	if err != nil {
 		return nil, err
@@ -144,8 +166,11 @@ func (s *PostgresStorage) GetComments(ctx context.Context, postID int64, parentI
 	return out, rows.Err()
 }
 
-func (s *PostgresStorage) EnsureCommentsEnabled(ctx context.Context, postID int64) error {
+func (s *PostgresStorage) EnsureCommentsEnabled(ctx context.Context, postID string) error {
 	const query = `SELECT comments_enabled FROM posts WHERE id = $1`
+
+	log.Printf("Enable comments query.")
+
 	var enabled bool
 	if err := s.pool.QueryRow(ctx, query, postID).Scan(&enabled); err != nil {
 		return err

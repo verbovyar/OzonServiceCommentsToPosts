@@ -87,10 +87,6 @@ type ComplexityRoot struct {
 }
 
 type CommentResolver interface {
-	ID(ctx context.Context, obj *models.Comment) (string, error)
-	PostID(ctx context.Context, obj *models.Comment) (string, error)
-	ParentID(ctx context.Context, obj *models.Comment) (*string, error)
-
 	Children(ctx context.Context, obj *models.Comment, limit *int, offset *int) ([]*models.Comment, error)
 }
 type MutationResolver interface {
@@ -98,8 +94,6 @@ type MutationResolver interface {
 	CreateComment(ctx context.Context, postID string, parentID *string, author string, content string) (*models.Comment, error)
 }
 type PostResolver interface {
-	ID(ctx context.Context, obj *models.Post) (string, error)
-
 	Comments(ctx context.Context, obj *models.Post, limit *int, offset *int, parentID *string) ([]*models.Comment, error)
 }
 type QueryResolver interface {
@@ -447,7 +441,7 @@ func (ec *executionContext) field_Mutation_createComment_args(ctx context.Contex
 		return nil, err
 	}
 	args["postId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalOID2ᚖstring)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +498,7 @@ func (ec *executionContext) field_Post_comments_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["offset"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalOID2ᚖstring)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
@@ -620,10 +614,10 @@ func (ec *executionContext) _Comment_id(ctx context.Context, field graphql.Colle
 		field,
 		ec.fieldContext_Comment_id,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Comment().ID(ctx, obj)
+			return obj.ID, nil
 		},
 		nil,
-		ec.marshalNID2string,
+		ec.marshalNString2string,
 		true,
 		true,
 	)
@@ -633,10 +627,10 @@ func (ec *executionContext) fieldContext_Comment_id(_ context.Context, field gra
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -649,10 +643,10 @@ func (ec *executionContext) _Comment_postId(ctx context.Context, field graphql.C
 		field,
 		ec.fieldContext_Comment_postId,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Comment().PostID(ctx, obj)
+			return obj.PostID, nil
 		},
 		nil,
-		ec.marshalNID2string,
+		ec.marshalNString2string,
 		true,
 		true,
 	)
@@ -662,10 +656,10 @@ func (ec *executionContext) fieldContext_Comment_postId(_ context.Context, field
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -678,10 +672,10 @@ func (ec *executionContext) _Comment_parentId(ctx context.Context, field graphql
 		field,
 		ec.fieldContext_Comment_parentId,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Comment().ParentID(ctx, obj)
+			return obj.ParentID, nil
 		},
 		nil,
-		ec.marshalOID2ᚖstring,
+		ec.marshalOString2ᚖstring,
 		true,
 		false,
 	)
@@ -691,10 +685,10 @@ func (ec *executionContext) fieldContext_Comment_parentId(_ context.Context, fie
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -965,10 +959,10 @@ func (ec *executionContext) _Post_id(ctx context.Context, field graphql.Collecte
 		field,
 		ec.fieldContext_Post_id,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Post().ID(ctx, obj)
+			return obj.ID, nil
 		},
 		nil,
-		ec.marshalNID2string,
+		ec.marshalNString2string,
 		true,
 		true,
 	)
@@ -978,10 +972,10 @@ func (ec *executionContext) fieldContext_Post_id(_ context.Context, field graphq
 	fc = &graphql.FieldContext{
 		Object:     "Post",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2934,110 +2928,17 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Comment")
 		case "id":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Comment_id(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
+			out.Values[i] = ec._Comment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "postId":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Comment_postId(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
+			out.Values[i] = ec._Comment_postId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "parentId":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Comment_parentId(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			out.Values[i] = ec._Comment_parentId(ctx, field, obj)
 		case "author":
 			out.Values[i] = ec._Comment_author(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -3180,41 +3081,10 @@ func (ec *executionContext) _Post(ctx context.Context, sel ast.SelectionSet, obj
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Post")
 		case "id":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Post_id(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
+			out.Values[i] = ec._Post_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "title":
 			out.Values[i] = ec._Post_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -4205,24 +4075,6 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
-	return res
-}
-
-func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := graphql.UnmarshalID(v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	_ = sel
-	_ = ctx
-	res := graphql.MarshalID(*v)
 	return res
 }
 

@@ -8,14 +8,14 @@ import (
 
 type Bus struct {
 	mu   sync.RWMutex
-	subs map[int64]map[chan *models.Comment]struct{}
+	subs map[string]map[chan *models.Comment]struct{}
 }
 
 func New() *Bus {
-	return &Bus{subs: make(map[int64]map[chan *models.Comment]struct{})}
+	return &Bus{subs: make(map[string]map[chan *models.Comment]struct{})}
 }
 
-func (b *Bus) Subscribe(postID int64) chan *models.Comment {
+func (b *Bus) Subscribe(postID string) chan *models.Comment {
 	ch := make(chan *models.Comment, 1)
 	b.mu.Lock()
 
@@ -29,7 +29,7 @@ func (b *Bus) Subscribe(postID int64) chan *models.Comment {
 	return ch
 }
 
-func (b *Bus) Unsubscribe(postID int64, ch chan *models.Comment) {
+func (b *Bus) Unsubscribe(postID string, ch chan *models.Comment) {
 	b.mu.Lock()
 	if m, ok := b.subs[postID]; ok {
 		if _, ok := m[ch]; ok {

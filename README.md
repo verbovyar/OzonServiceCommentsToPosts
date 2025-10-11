@@ -1,87 +1,89 @@
-**REST API для блога с системой комментариев** — высокопроизводительное Go-приложение с in-memory хранилищем и поддержкой древовидных комментариев.
+# OzonProject — GraphQL сервис постов и комментариев
 
-Создать пост
+Учебный сервис на **Go**, реализующий систему постов и комментариев в стиле Reddit / Habr.  
+Использует **GraphQL (gqlgen)** и **PostgreSQL** с возможностью работы в **in-memory** режиме.  
+Готов к запуску через **Docker Compose**.
+
+---
+
+## Возможности
+
+- Просмотр списка постов с пагинацией (`limit`, `offset`)
+- Просмотр поста с комментариями
+- Возможность отключить комментарии к посту
+- Иерархические комментарии (вложенность без ограничений)
+- Пагинация комментариев
+- Поддержка GraphQL Subscriptions (асинхронная доставка новых комментариев)
+
+---
+
+## Технологии
+
+- **Go 1.22+**
+- **gqlgen** — GraphQL-сервер
+- **PostgreSQL 15**
+- **pgx / pgxpool** — работа с базой
+- **pgxmock** — unit-тесты
+- **Docker + docker-compose** — сборка и запуск
+
+---
+
+## Запуск проекта
+
+### Через Docker Compose
+
+```bash
+docker-compose up --build
+```
+
+## Примеры запросов
+
+### Создать пост
+
+```gql
 mutation {
-  createPost(title: "Hello", content: "First Post", author: "Yaroslav", commentsEnabled: true) {
-    id title commentsEnabled
-  }
-}
-
-Список постов
-query {
-  posts(limit: 10, offset: 0) { id title author createdAt }
-}
-
-Получить пост с комментами верхнего уровня
-query {
-  post(id: "1") {
-    id title
-    comments(limit: 20, offset: 0) {
-      id author content createdAt
-    }
-  }
-}
-
-Добавить коммент
-mutation {
-  createComment(postId: "1", author: "Sergey", content: "Nice post") {
-    id postId content
-  }
-}
-
-Дочерние комменты конерктного узла
-query {
-  post(id: "1") {
-    comments(limit: 10, offset: 0) {
-      id
-      children(limit: 10, offset: 0) { id content }
-    }
-  }
-}
-------------------------------------------------------------------------------
-Добавить коммент верхнего уровня
-mutation {
-  createComment(postId: "1", author: "Elena", content: "My son") {
+  createPost(title: "Hello", content: "My first post", author: "Alice", commentsEnabled: true) {
     id
+    title
+    author
   }
 }
-Ответ на этот коммент
-mutation {
-  createComment(postId: "1", parentId: "1", author: "Yaroslav", content: "Reply to Elena") {
-    id
-  }
-}
-Еще уровень вложенности 
-mutation {
-  createComment(postId: "1", parentId: "2", author: "Alina", content: "Nested reply") {
-    id
-  }
-}
+```
 
-Читатем теперь
-Получить верхний уровень под постом
-query {
-  post(id: "1") {
-    comments(limit: 20, offset: 0) {
-      id author content createdAt
-      children(limit: 10, offset: 0) {
-        id author content
-      }
-    }
+### Добавить комментарий
+
+```gql
+mutation {
+  createComment(postID: "1", author: "Bob", content: "Nice post!") {
+    id
+    content
+    author
   }
 }
-Подгружать детей по клику
-query {
-  post(id: "1") {
-    comments(parentId: "1", limit: 10, offset: 0) {
-      id content
-    }
-  }
-}
----------------------------
-Подписка на пост
+```
+
+### Подписка на новые комментарии
+
+```gql
 subscription {
-  commentAdded(postId: "1") {
+  commentAdded(postID: "1") {
+    id
+    author
+    content
+  }
+}
+```
+
+### Replay к комментарию
+
+```gql
+mutation {
+  createComment(
+    postID: "1"
+    parentID: "123"
+    author: "Bob"
+    content: "Отвечаю на комментарий 123"
+  ) {
     id
     postId
     parentId
@@ -90,10 +92,74 @@ subscription {
     createdAt
   }
 }
+```
 
-В другой вкладке 
-mutation {
-  createComment(postId: "1", author: "Roma", content: "Hello via subscriptions!") {
+### Пост со всеми комментами 
+
+```gql
+query {
+  post(id: "1") {
     id
+    title
+    author
+    createdAt
+    commentsEnabled
+
+    # Верхний уровень
+    comments(limit: 50, offset: 0) {
+      id
+      author
+      content
+      createdAt
+      parentId
+
+      # 1-й уровень вложенности
+      children(limit: 50, offset: 0) {
+        id
+        author
+        content
+        createdAt
+        parentId
+
+        # 2-й уровень вложенности
+        children(limit: 50, offset: 0) {
+          id
+          author
+          content
+          createdAt
+          parentId
+
+          # 3-й уровень вложенности
+          children(limit: 50, offset: 0) {
+            id
+            author
+            content
+            createdAt
+            parentId
+          }
+        }
+      }
+    }
   }
 }
+```
+
+## Структура проекта
+
+.
+├── cmd/
+│   └── service/              # Точка входа
+├── graph/                    # GraphQL схема и резолверы (gqlgen)
+├── config/                   # Конфиг файл
+├── internal/
+│   ├── models/               # Модели данных
+│   ├── storage/              # Хранилище на PostgreSQL и in memory
+│   ├── service/              # Бизнес-логика
+|   ├── validation/           # Валидация
+|   ├── utils/                # Утилиты
+|   ├── pubsub/               # (Subscribe/Unsubscribe/Publish)
+├── migrations/               # SQL миграции
+├── pkg/
+├── docker-compose.yml
+├── Dockerfile
+└── README.md

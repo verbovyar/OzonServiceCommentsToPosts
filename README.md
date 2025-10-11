@@ -146,6 +146,7 @@ query {
 
 ## Структура проекта
 
+```pgsql
 .
 ├── cmd/
 │   └── service/              # Точка входа
@@ -163,3 +164,4 @@ query {
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md
+```
